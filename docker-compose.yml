@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # Zookeeper (required by this setup)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper
+    platform: linux/arm64
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - bigdata
+
+  # Kafka (works with Zookeeper)
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka
+    platform: linux/arm64
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"    # host port -> container port for external access (Python)
+      - "29092:29092"  # internal Docker network listener (optional)
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+      # Listeners: one for internal docker network, one for localhost access
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    networks:
+      - bigdata
+
+  # NiFi
+  nifi:
+    image: apache/nifi:latest
+    container_name: nifi
+    platform: linux/arm64
+    ports:
+      - "8443:8443"
+    environment:
+      SINGLE_USER_CREDENTIALS_USERNAME: admin
+      SINGLE_USER_CREDENTIALS_PASSWORD: admin12345
+      NIFI_JVM_HEAP_INIT: "512m"
+      NIFI_JVM_HEAP_MAX: "1g"
+    networks:
+      - bigdata
+
+  # Spark (keeps container alive)
+  spark:
+    image: apache/spark:4.0.1-python3
+    container_name: spark
+    platform: linux/arm64
+    volumes:
+      - ./code:/opt/spark/work-dir
+    command: tail -f /dev/null
+    networks:
+      - bigdata
+
+networks:
+  bigdata:
+    driver: bridge

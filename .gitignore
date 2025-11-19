@@ -1,0 +1,15 @@
+# Ignore the virtual environment
+spark_env/
+venv/
+__pycache__/
+
+# Ignore Docker data volumes
+*_data/
+kafka_data/
+zookeeper_data/
+
+# Ignore Mac system files
+.DS_Store
+
+code/hadoop-3.0.0/
+*.tar.gz
